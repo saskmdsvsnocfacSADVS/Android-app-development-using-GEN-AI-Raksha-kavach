@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Raksha-Kavach | Worker Safety Auditor</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --yellow: #FFD600;
+    --yellow-dark: #F9A825;
+    --yellow-glow: rgba(255,214,0,0.4);
+    --black: #0A0A0A;
+    --dark: #111111;
+    --dark2: #1A1A1A;
+    --dark3: #222222;
+    --red: #FF3D00;
+    --red-dark: #B71C1C;
+    --green: #00E676;
+    --green-dark: #00C853;
+    --orange: #FF6D00;
+    --white: #F5F5F5;
+    --gray: #888888;
+    --border: rgba(255,214,0,0.25);
+    --font-display: 'Teko', sans-serif;
+    --font-body: 'Rajdhani', sans-serif;
+    --font-mono: 'Share Tech Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    max-width: 420px;
+    margin: 0 auto;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* HAZARD STRIPES BACKGROUND */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 40px,
+      rgba(255,214,0,0.015) 40px,
+      rgba(255,214,0,0.015) 80px
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* STATUS BAR */
+  .status-bar {
+    background: var(--black);
+    padding: 8px 16px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--gray);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid rgba(255,214,0,0.1);
+  }
+
+  .status-bar .time { color: var(--yellow); font-weight: bold; }
+  .status-icons { display: flex; gap: 6px; }
+
+  /* APP HEADER */
+  .app-header {
+    background: var(--dark);
+    padding: 14px 16px 12px;
+    position: sticky;
+    top: 33px;
+    z-index: 99;
+    border-bottom: 2px solid var(--yellow);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(255,214,0,0.15);
+  }
+
+  .app-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 38px;
+    height: 38px;
+    background: var(--yellow);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    position: relative;
+    animation: pulse-logo 2s infinite;
+  }
+
+  @keyframes pulse-logo {
+    0%, 100% { box-shadow: 0 0 0 0 var(--yellow-glow); }
+    50% { box-shadow: 0 0 0 6px transparent; }
+  }
+
+  .logo-text h1 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--yellow);
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+
+  .logo-text p {
+    font-size: 10px;
+    color: var(--gray);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .score-badge {
+    background: var(--dark3);
+    border: 1.5px solid var(--yellow);
+    border-radius: 10px;
+    padding: 6px 12px;
+    text-align: center;
+  }
+
+  .score-badge .score-num {
+    font-family: var(--font-display);
+    font-size: 22px;
+    color: var(--yellow);
+    line-height: 1;
+    font-weight: 700;
+  }
+
+  .score-badge .score-label {
+    font-size: 9px;
+    color: var(--gray);
+    letter-spacing: 1px;
+  }
+
+  /* SAFETY ALERT BANNER */
+  .alert-banner {
+    background: linear-gradient(90deg, var(--red-dark), #8B0000);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    animation: alert-flash 3s infinite;
+    cursor: pointer;
+  }
+
+  @keyframes alert-flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.85; }
+  }
+
+  .alert-banner.safe {
+    background: linear-gradient(90deg, #1B5E20, #2E7D32);
+    animation: none;
+  }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 420px;
+    background: var(--dark);
+    border-top: 2px solid var(--yellow);
+    display: flex;
+    z-index: 99;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+  }
+
+  .nav-item {
+    flex: 1;
+    padding: 10px 4px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    color: var(--gray);
+  }
+
+  .nav-item.active { color: var(--yellow); }
+  .nav-item:active { background: rgba(255,214,0,0.05); }
+  .nav-item .nav-icon { font-size: 20px; line-height: 1; }
+  .nav-item .nav-label { font-family: var(--font-body); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; }
+
+  /* MAIN CONTENT */
+  .main-content {
+    padding: 0 0 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* SECTION HEADER */
+  .section-header {
+    padding: 16px 16px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-header h2 {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--yellow);
+    text-transform: uppercase;
+  }
+
+  .section-header .badge {
+    background: var(--yellow);
+    color: var(--black);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+  }
+
+  /* ========== SCREEN 1: TASK SELECTOR ========== */
+  .task-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 0 12px 12px;
+  }
+
+  .task-card {
+    background: var(--dark2);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .task-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,214,0,0.05), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .task-card:active, .task-card.selected {
+    border-color: var(--yellow);
+    background: var(--dark3);
+    transform: scale(0.97);
+  }
+
+  .task-card:active::before, .task-card.selected::before { opacity: 1; }
+
+  .task-card.selected { border-color: var(--yellow); box-shadow: 0 0 12px var(--yellow-glow); }
+
+  .task-emoji { font-size: 32px; line-height: 1; }
+
+  .task-name {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-align: center;
+    color: var(--white);
+  }
+
+  .task-risk {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .risk-high { background: rgba(255,61,0,0.2); color: var(--red); border: 1px solid rgba(255,61,0,0.3); }
+  .risk-med { background: rgba(255,109,0,0.2); color: var(--orange); border: 1px solid rgba(255,109,0,0.3); }
+  .risk-low { background: rgba(0,230,118,0.15); color: var(--green); border: 1px solid rgba(0,230,118,0.25); }
+
+  .selected-task-banner {
+    margin: 0 12px 12px;
+    background: linear-gradient(135deg, #1A1200, #2A1F00);
+    border: 2px solid var(--yellow);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .selected-task-banner .task-big-emoji { font-size: 40px; }
+
+  .selected-task-info h3 {
+    font-family: var(--font-display);
+    font-size: 20px;
+    color: var(--yellow);
+    font-weight: 600;
+    letter-spacing: 1.5px;
+  }
+
+  .selected-task-info p {
+    font-size: 12px;
+    color: var(--gray);
+    margin-top: 2px;
+  }
+
+  .proceed-btn {
+    width: calc(100% - 24px);
+    margin: 0 12px 12px;
+    background: var(--yellow);
+    color: var(--black);
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .proceed-btn:active { transform: scale(0.97); background: var(--yellow-dark); }
+
+  /* ========== SCREEN 2: CHECKLIST ========== */
+  .checklist-wrap { padding: 0 12px; }
+
+  .gear-item {
+    background: var(--dark2);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gear-item.checked {
+    border-color: var(--green);
+    background: rgba(0,230,118,0.05);
+  }
+
+  .gear-item.checked::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--green);
+  }
+
+  .gear-emoji { font-size: 28px; min-width: 36px; text-align: center; }
+
+  .gear-info { flex: 1; }
+
+  .gear-info h4 {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--white);
+  }
+
+  .gear-info p {
+    font-size: 12px;
+    color: var(--gray);
+    margin-top: 2px;
+    line-height: 1.3;
+  }
+
+  .check-btn {
+    min-width: 52px;
+    height: 36px;
+    border: 2px solid var(--border);
+    background: var(--dark3);
+    border-radius: 8px;
+    color: var(--gray);
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 0 10px;
+  }
+
+  .check-btn.done {
+    background: var(--green);
+    border-color: var(--green);
+    color: var(--black);
+  }
+
+  .check-btn:active { transform: scale(0.95); }
+
+  /* RISK METER */
+  .risk-meter-box {
+    margin: 0 12px 14px;
+    background: var(--dark2);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .risk-meter-box h3 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--yellow);
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  .risk-bar-track {
+    background: var(--dark3);
+    border-radius: 6px;
+    height: 18px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .risk-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+
+  .risk-bar-fill.risk-full { background: linear-gradient(90deg, #FF6D00, #FF3D00); }
+  .risk-bar-fill.risk-partial { background: linear-gradient(90deg, #F9A825, #FF6D00); }
+  .risk-bar-fill.risk-safe { background: linear-gradient(90deg, #00C853, #00E676); }
+
+  .risk-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--gray);
+    font-family: var(--font-mono);
+    margin-top: 4px;
+  }
+
+  .risk-consequence {
+    margin-top: 10px;
+    padding: 10px;
+    background: rgba(255,61,0,0.1);
+    border-radius: 8px;
+    border-left: 3px solid var(--red);
+    font-size: 12px;
+    color: var(--white);
+    line-height: 1.5;
+    transition: all 0.3s;
+  }
+
+  .risk-consequence.safe-msg {
+    background: rgba(0,230,118,0.1);
+    border-left-color: var(--green);
+  }
+
+  /* AVATAR AREA */
+  .avatar-area {
+    margin: 0 12px 14px;
+    background: var(--dark2);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+  }
+
+  .avatar-area h3 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--yellow);
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+
+  .avatar-figure {
+    font-size: 70px;
+    line-height: 1;
+    position: relative;
+    display: inline-block;
+    animation: float-avatar 3s ease-in-out infinite;
+  }
+
+  @keyframes float-avatar {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  .gear-overlays {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .gear-overlay-badge {
+    background: var(--dark3);
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--gray);
+    transition: all 0.3s;
+  }
+
+  .gear-overlay-badge.active {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(0,230,118,0.08);
+  }
+
+  /* ========== SCREEN 3: RISK ========== */
+  .risk-screen { padding: 0 12px; }
+
+  .risk-card {
+    background: var(--dark2);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 10px;
+    border: 1.5px solid var(--border);
+  }
+
+  .risk-level-big {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .risk-icon-big { font-size: 40px; }
+
+  .risk-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+  }
+
+  .risk-sub { font-size: 12px; color: var(--gray); }
+
+  .injury-list { list-style: none; }
+
+  .injury-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .injury-item:last-child { border-bottom: none; }
+  .injury-dot { font-size: 16px; min-width: 20px; }
+
+  /* CIRCULAR RISK METER */
+  .circular-meter {
+    display: flex;
+    justify-content: center;
+    margin: 14px 0;
+  }
+
+  .meter-svg { transform: rotate(-90deg); }
+
+  .meter-label {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    fill: var(--yellow);
+    transform: rotate(90deg);
+    transform-origin: 60px 60px;
+  }
+
+  .meter-sublabel {
+    font-size: 11px;
+    fill: var(--gray);
+    font-family: var(--font-body);
+    transform: rotate(90deg);
+    transform-origin: 60px 60px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ========== SCREEN 4: INCIDENT LOG ========== */
+  .incident-form {
+    margin: 0 12px 14px;
+    background: var(--dark2);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .incident-form h3 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--yellow);
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+
+  .form-group { margin-bottom: 12px; }
+
+  .form-label {
+    display: block;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--gray);
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  .form-select, .form-input, .form-textarea {
+    width: 100%;
+    background: var(--dark3);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--white);
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .form-select:focus, .form-input:focus, .form-textarea:focus {
+    border-color: var(--yellow);
+  }
+
+  .form-textarea { resize: none; height: 80px; line-height: 1.5; }
+
+  .severity-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .severity-btn {
+    flex: 1;
+    padding: 8px 4px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--dark3);
+    color: var(--gray);
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .severity-btn.sel-low { border-color: var(--green); color: var(--green); background: rgba(0,230,118,0.1); }
+  .severity-btn.sel-med { border-color: var(--orange); color: var(--orange); background: rgba(255,109,0,0.1); }
+  .severity-btn.sel-high { border-color: var(--red); color: var(--red); background: rgba(255,61,0,0.1); }
+
+  .submit-incident-btn {
+    width: 100%;
+    background: var(--red);
+    color: var(--white);
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 13px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: all 0.2s;
+  }
+
+  .submit-incident-btn:active { transform: scale(0.97); opacity: 0.9; }
+
+  /* INCIDENT LOGS LIST */
+  .logs-wrap { padding: 0 12px; }
+
+  .log-entry {
+    background: var(--dark2);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .log-entry::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+  }
+
+  .log-entry.sev-low::before { background: var(--green); }
+  .log-entry.sev-med::before { background: var(--orange); }
+  .log-entry.sev-high::before { background: var(--red); }
+
+  .log-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .log-task-name {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--white);
+    letter-spacing: 0.5px;
+  }
+
+  .log-sev-badge {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .log-sev-badge.sev-low { background: rgba(0,230,118,0.15); color: var(--green); }
+  .log-sev-badge.sev-med { background: rgba(255,109,0,0.15); color: var(--orange); }
+  .log-sev-badge.sev-high { background: rgba(255,61,0,0.15); color: var(--red); }
+
+  .log-desc { font-size: 12px; color: var(--gray); line-height: 1.4; margin-bottom: 6px; }
+  .log-date { font-size: 10px; font-family: var(--font-mono); color: rgba(255,255,255,0.3); }
+
+  /* ========== SCREEN 5: QUIZ ========== */
+  .quiz-wrap { padding: 0 12px; }
+
+  .quiz-card {
+    background: var(--dark2);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 12px;
+  }
+
+  .quiz-question-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--yellow);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .quiz-question-text {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--white);
+    margin-bottom: 14px;
+    line-height: 1.3;
+  }
+
+  .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+
+  .quiz-option {
+    background: var(--dark3);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 14px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: var(--font-body);
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+  }
+
+  .quiz-option:active { transform: scale(0.98); }
+  .quiz-option.correct { border-color: var(--green); background: rgba(0,230,118,0.1); color: var(--green); }
+  .quiz-option.wrong { border-color: var(--red); background: rgba(255,61,0,0.1); color: var(--red); }
+  .quiz-option.disabled { pointer-events: none; }
+
+  .option-letter {
+    width: 24px;
+    height: 24px;
+    background: var(--border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  .quiz-explanation {
+    margin-top: 12px;
+    padding: 10px;
+    background: rgba(255,214,0,0.07);
+    border-radius: 8px;
+    border-left: 3px solid var(--yellow);
+    font-size: 12px;
+    color: var(--white);
+    line-height: 1.5;
+    display: none;
+  }
+
+  .quiz-explanation.show { display: block; }
+
+  .quiz-next-btn {
+    width: 100%;
+    background: var(--yellow);
+    color: var(--black);
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 13px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: all 0.2s;
+    display: none;
+  }
+
+  .quiz-next-btn.show { display: block; }
+  .quiz-next-btn:active { transform: scale(0.97); }
+
+  /* SCORE CARD */
+  .score-card {
+    background: var(--dark2);
+    border: 2px solid var(--yellow);
+    border-radius: 14px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 12px;
+    display: none;
+  }
+
+  .score-card.show { display: block; }
+
+  .score-card .big-score {
+    font-family: var(--font-display);
+    font-size: 64px;
+    font-weight: 700;
+    color: var(--yellow);
+    line-height: 1;
+  }
+
+  .score-card .score-total {
+    font-size: 20px;
+    color: var(--gray);
+    font-family: var(--font-mono);
+    margin-bottom: 12px;
+  }
+
+  .score-card .score-msg {
+    font-family: var(--font-body);
+    font-size: 16px;
+    color: var(--white);
+    margin-bottom: 16px;
+    line-height: 1.4;
+  }
+
+  /* STREAK CARD */
+  .streak-card {
+    margin: 0 12px 14px;
+    background: linear-gradient(135deg, #1A1200, #2A2000);
+    border: 2px solid var(--yellow);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .streak-icon { font-size: 36px; }
+
+  .streak-info h3 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--yellow);
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  .streak-info p { font-size: 12px; color: var(--gray); }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--dark3);
+    border: 1.5px solid var(--yellow);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-family: var(--font-display);
+    font-size: 15px;
+    color: var(--yellow);
+    letter-spacing: 1px;
+    z-index: 999;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.show { display: flex; }
+
+  .modal-box {
+    background: var(--dark2);
+    border: 2px solid var(--yellow);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+  }
+
+  .modal-icon { font-size: 48px; margin-bottom: 12px; }
+
+  .modal-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--yellow);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .modal-msg {
+    font-size: 14px;
+    color: var(--gray);
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+
+  .modal-btn {
+    background: var(--yellow);
+    color: var(--black);
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 13px 32px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--dark); }
+  ::-webkit-scrollbar-thumb { background: rgba(255,214,0,0.3); border-radius: 2px; }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray);
+  }
+
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+
+  /* PULSE DOT */
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: dot-pulse 2s infinite;
+    display: inline-block;
+  }
+
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+</style>
+  <!-- PWA -->
+  <meta name="theme-color" content="#FFD600">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Raksha-Kavach">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+<body>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <span class="time" id="statusTime">09:00</span>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <span class="pulse-dot"></span>
+    <span>LIVE</span>
+  </div>
+  <div class="status-icons">
+    <span>📶</span>
+    <span>🔋</span>
+  </div>
+</div>
+
+<!-- APP HEADER -->
+<div class="app-header">
+  <div class="app-logo">
+    <div class="logo-icon">🦺</div>
+    <div class="logo-text">
+      <h1>RAKSHA-KAVACH</h1>
+      <p>Worker Safety Auditor</p>
+    </div>
+  </div>
+  <div class="score-badge">
+    <div class="score-num" id="headerScore">0</div>
+    <div class="score-label">SCORE</div>
+  </div>
+</div>
+
+<!-- ALERT BANNER -->
+<div class="alert-banner" id="alertBanner" onclick="showReminder()">
+  ⚠️ &nbsp;TAP FOR TODAY'S SAFETY REMINDER
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+
+  <!-- ===== SCREEN 1: TASKS ===== -->
+  <div class="screen active" id="screen-tasks">
+    <div class="section-header">
+      <h2>SELECT TASK</h2>
+      <span class="badge">TODAY</span>
+    </div>
+
+    <div class="task-grid" id="taskGrid">
+      <!-- Tasks rendered by JS -->
+    </div>
+
+    <div class="selected-task-banner" id="selectedTaskBanner" style="display:none;">
+      <div class="task-big-emoji" id="selectedTaskEmoji">⛏️</div>
+      <div class="selected-task-info">
+        <h3 id="selectedTaskName">WELDING</h3>
+        <p id="selectedTaskDesc">High risk task selected</p>
+      </div>
+    </div>
+
+    <button class="proceed-btn" id="proceedBtn" onclick="goToChecklist()" style="display:none;">
+      START SAFETY CHECK ➜
+    </button>
+  </div>
+
+  <!-- ===== SCREEN 2: CHECKLIST ===== -->
+  <div class="screen" id="screen-checklist">
+    <div class="section-header">
+      <h2>GEAR CHECK</h2>
+    </div>
+
+    <div class="avatar-area">
+      <h3>SAFETY AVATAR</h3>
+      <div class="avatar-figure" id="avatarFigure">👷</div>
+      <div class="gear-overlays" id="gearOverlays"></div>
+    </div>
+
+    <div class="risk-meter-box">
+      <h3>⚠️ RISK METER</h3>
+      <div class="risk-bar-track">
+        <div class="risk-bar-fill risk-full" id="riskBarFill" style="width:100%"></div>
+      </div>
+      <div class="risk-labels">
+        <span>SAFE</span>
+        <span>MODERATE</span>
+        <span>CRITICAL</span>
+      </div>
+      <div class="risk-consequence" id="riskConsequence">
+        ⚠️ No gear checked! Without protection, you face severe risk of injury or death on this task.
+      </div>
+    </div>
+
+    <div class="section-header" style="padding-top:0;">
+      <h2>CHECKLIST</h2>
+    </div>
+
+    <div class="checklist-wrap" id="checklistItems">
+      <!-- Rendered by JS -->
+    </div>
+
+    <button class="proceed-btn" onclick="completeDay()" style="margin-top:4px;">
+      ✅ MARK DAY COMPLETE
+    </button>
+  </div>
+
+  <!-- ===== SCREEN 3: RISK ===== -->
+  <div class="screen" id="screen-risk">
+    <div class="section-header">
+      <h2>RISK ANALYSIS</h2>
+    </div>
+
+    <div class="circular-meter">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="50" fill="none" stroke="#222" stroke-width="12"/>
+        <circle cx="60" cy="60" r="50" fill="none" stroke="#FFD600" stroke-width="12"
+          stroke-dasharray="314" stroke-dashoffset="157" id="meterCircle"
+          stroke-linecap="round" style="transition: stroke-dashoffset 1s ease;"/>
+        <text x="60" y="55" text-anchor="middle" font-family="Teko" font-size="24"
+          fill="#FFD600" font-weight="700" id="meterPct">50%</text>
+        <text x="60" y="70" text-anchor="middle" font-family="Rajdhani" font-size="11"
+          fill="#888" letter-spacing="1">RISK</text>
+      </svg>
+    </div>
+
+    <div class="risk-screen" id="riskDetailScreen">
+      <!-- Rendered by JS -->
+    </div>
+  </div>
+
+  <!-- ===== SCREEN 4: INCIDENT LOG ===== -->
+  <div class="screen" id="screen-log">
+    <div class="section-header">
+      <h2>INCIDENT LOG</h2>
+    </div>
+
+    <div class="incident-form">
+      <h3>📋 REPORT NEAR MISS</h3>
+
+      <div class="form-group">
+        <label class="form-label">Task / Work Type</label>
+        <select class="form-select" id="logTask"></select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">What Happened?</label>
+        <textarea class="form-textarea" id="logDesc" placeholder="Describe the near miss or unsafe incident..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Severity Level</label>
+        <div class="severity-row">
+          <button class="severity-btn" onclick="selectSeverity('LOW',this)">🟢 LOW</button>
+          <button class="severity-btn" onclick="selectSeverity('MED',this)">🟠 MED</button>
+          <button class="severity-btn" onclick="selectSeverity('HIGH',this)">🔴 HIGH</button>
+        </div>
+      </div>
+
+      <button class="submit-incident-btn" onclick="submitIncident()">📤 SUBMIT REPORT</button>
+    </div>
+
+    <div class="section-header" style="padding-top:0;">
+      <h2>RECENT LOGS</h2>
+    </div>
+
+    <div class="logs-wrap" id="incidentLogs">
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <p>No incidents logged yet.<br>Report near misses to build a safer workplace.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN 5: QUIZ ===== -->
+  <div class="screen" id="screen-quiz">
+    <div class="section-header">
+      <h2>SAFETY QUIZ</h2>
+      <span class="badge" id="quizBadge">5 Qs</span>
+    </div>
+
+    <div class="streak-card">
+      <div class="streak-icon">🔥</div>
+      <div class="streak-info">
+        <h3>DAY STREAK: <span id="streakCount">0</span></h3>
+        <p>Complete daily quiz to grow your streak!</p>
+      </div>
+    </div>
+
+    <div class="quiz-wrap">
+      <div id="quizScoreCard" class="score-card">
+        <div class="big-score" id="finalScore">0</div>
+        <div class="score-total" id="finalScoreTotal">/ 5 CORRECT</div>
+        <div class="score-msg" id="finalScoreMsg">Well done!</div>
+        <button class="proceed-btn" style="margin:0;" onclick="restartQuiz()">RETRY QUIZ 🔄</button>
+      </div>
+      <div id="quizContainer"></div>
+      <button class="quiz-next-btn" id="quizNextBtn" onclick="nextQuestion()">NEXT QUESTION ➜</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="switchScreen('tasks',this)">
+    <span class="nav-icon">⚒️</span>
+    <span class="nav-label">Tasks</span>
+  </button>
+  <button class="nav-item" onclick="switchScreen('checklist',this)">
+    <span class="nav-icon">✅</span>
+    <span class="nav-label">Gear</span>
+  </button>
+  <button class="nav-item" onclick="switchScreen('risk',this)">
+    <span class="nav-icon">⚠️</span>
+    <span class="nav-label">Risk</span>
+  </button>
+  <button class="nav-item" onclick="switchScreen('log',this)">
+    <span class="nav-icon">📋</span>
+    <span class="nav-label">Logs</span>
+  </button>
+  <button class="nav-item" onclick="switchScreen('quiz',this)">
+    <span class="nav-icon">🧠</span>
+    <span class="nav-label">Quiz</span>
+  </button>
+</nav>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-icon" id="modalIcon">🦺</div>
+    <div class="modal-title" id="modalTitle">SAFETY REMINDER</div>
+    <div class="modal-msg" id="modalMsg">Stay safe today!</div>
+    <button class="modal-btn" onclick="closeModal()">GOT IT ✓</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  DATA
+// ============================================================
+const TASKS = [
+  { id:'welding', name:'WELDING', emoji:'🔥', risk:'HIGH',
+    desc:'Arc flash, burns, fumes',
+    gear:['Welding Helmet','Flame-Resistant Gloves','Safety Boots','Welding Apron','Goggles','Fire Extinguisher'],
+    gearEmoji:['🪖','🧤','👢','🥼','🥽','🧯'],
+    injuries:['Third-degree burns from spatter','Eye damage from UV arc flash','Lung damage from toxic fumes','Electric shock from equipment'],
+    riskPct: 92 },
+  { id:'height', name:'HEIGHT WORK', emoji:'🪜', risk:'HIGH',
+    desc:'Falls, structural collapse',
+    gear:['Safety Helmet','Full Body Harness','Non-slip Boots','Hi-Vis Vest','Safety Net'],
+    gearEmoji:['🪖','🦺','👢','🦺','🕸️'],
+    injuries:['Fatal falls from heights','Head trauma without helmet','Spinal injury on impact','Crush injury from falling objects'],
+    riskPct: 88 },
+  { id:'trench', name:'TRENCH DIG', emoji:'⛏️', risk:'HIGH',
+    desc:'Collapse, gas exposure',
+    gear:['Safety Helmet','Safety Boots','Gloves','Hi-Vis Vest','Gas Detector'],
+    gearEmoji:['🪖','👢','🧤','🦺','📡'],
+    injuries:['Burial in trench collapse','Toxic gas poisoning','Broken bones from falls','Crush injuries from machinery'],
+    riskPct: 85 },
+  { id:'chemical', name:'CHEMICAL', emoji:'⚗️', risk:'HIGH',
+    desc:'Burns, toxic exposure',
+    gear:['Chemical Goggles','Acid-Proof Gloves','Face Shield','Chemical Suit','Safety Boots'],
+    gearEmoji:['🥽','🧤','😷','🥼','👢'],
+    injuries:['Chemical burns to skin','Permanent eye damage','Respiratory failure','Toxic systemic poisoning'],
+    riskPct: 90 },
+  { id:'electrical', name:'ELECTRICAL', emoji:'⚡', risk:'HIGH',
+    desc:'Electrocution, arc blast',
+    gear:['Insulated Gloves','Safety Boots','Face Shield','Arc Flash Suit','Helmet'],
+    gearEmoji:['🧤','👢','😷','🥼','🪖'],
+    injuries:['Electrocution / cardiac arrest','Severe arc flash burns','Hearing loss from blast','Eye damage from arc flash'],
+    riskPct: 94 },
+  { id:'grinding', name:'GRINDING', emoji:'🪛', risk:'MED',
+    desc:'Sparks, flying debris',
+    gear:['Face Shield','Gloves','Safety Boots','Hearing Protection','Dust Mask'],
+    gearEmoji:['😷','🧤','👢','🎧','😷'],
+    injuries:['Eye injury from metal chips','Hand lacerations','Hearing loss','Respiratory issues from dust'],
+    riskPct: 65 },
+  { id:'machinery', name:'MACHINERY', emoji:'⚙️', risk:'MED',
+    desc:'Entanglement, crush injuries',
+    gear:['Safety Helmet','Safety Boots','Gloves','Hi-Vis Vest','Eye Protection'],
+    gearEmoji:['🪖','👢','🧤','🦺','🥽'],
+    injuries:['Limb amputation from entanglement','Crush injuries from press work','Head injury from falling parts','Eye injury from flying debris'],
+    riskPct: 70 },
+  { id:'masonry', name:'MASONRY', emoji:'🧱', risk:'MED',
+    desc:'Dust, falling objects',
+    gear:['Safety Helmet','Safety Boots','Gloves','Dust Mask','Knee Pads'],
+    gearEmoji:['🪖','👢','🧤','😷','🦵'],
+    injuries:['Silica dust lung disease','Back injuries from lifting','Foot crush from bricks','Eye injury from cement dust'],
+    riskPct: 58 },
+  { id:'painting', name:'PAINTING', emoji:'🎨', risk:'LOW',
+    desc:'Fumes, slip hazard',
+    gear:['Dust Mask','Goggles','Gloves','Hi-Vis Vest'],
+    gearEmoji:['😷','🥽','🧤','🦺'],
+    injuries:['Chemical fume inhalation','Skin dermatitis from solvents','Slip and fall accidents','Ladder fall injuries'],
+    riskPct: 35 },
+  { id:'cleaning', name:'CLEANING', emoji:'🧹', risk:'LOW',
+    desc:'Slip, chemical exposure',
+    gear:['Gloves','Safety Boots','Goggles','Apron'],
+    gearEmoji:['🧤','👢','🥽','🥼'],
+    injuries:['Chemical burn from cleaners','Slip and fall on wet floors','Back strain from lifting','Eye irritation from chemicals'],
+    riskPct: 25 },
+];
+
+const QUIZ = [
+  { q:'What is the FIRST thing you must check before starting any construction work?', opts:['Phone battery','Personal Protective Equipment (PPE)','Lunch box','Work schedule'], ans:1, exp:'Always inspect and wear your PPE before starting any task. This is the foundation of workplace safety.' },
+  { q:'When working at height above 2 meters, which equipment is MANDATORY?', opts:['Regular belt','Full body safety harness','Rope tied to waist','No equipment needed if careful'], ans:1, exp:'A full body harness distributes fall forces across the body and must be used at heights above 2 meters.' },
+  { q:'You smell an unusual odor in a trench. What should you do IMMEDIATELY?', opts:['Continue working','Take a deep breath','Exit immediately and alert supervisor','Turn on more lights'], ans:2, exp:'Unusual odors in trenches indicate possible toxic gas. Exit immediately — do NOT investigate. Your life comes first.' },
+  { q:'Welding without proper eye protection can cause:', opts:['Better visibility','Arc eye (welder\'s flash)','Improved focus','No harm at all'], ans:1, exp:'Arc eye is a painful injury caused by UV radiation from welding. It can cause temporary or permanent blindness.' },
+  { q:'A "Near Miss" incident should be:', opts:['Kept secret to avoid trouble','Reported immediately to supervisor','Ignored as nothing happened','Discussed only with coworkers'], ans:1, exp:'Near miss reporting prevents future accidents. Every near miss is a warning — reporting it could save lives.' },
+  { q:'What color code indicates the HIGHEST level of danger on a safety sign?', opts:['Green','Blue','Yellow','Red'], ans:3, exp:'Red indicates immediate danger requiring urgent action. Yellow is caution, blue is mandatory action, green is safe condition.' },
+  { q:'How often should safety gear be inspected?', opts:['Once a year','Before each use','Only when it looks damaged','Never — trust the manufacturer'], ans:1, exp:'Inspect PPE before EVERY use. A cracked helmet or torn glove provides no protection and can give false confidence.' },
+  { q:'The safety score increases when:', opts:['You skip wearing heavy gear','You complete consecutive accident-free days','You work faster than coworkers','You report the least incidents'], ans:1, exp:'Your safety score rewards consistent safe behavior. Every accident-free day builds your streak and improves your score.' },
+];
+
+// ============================================================
+//  STATE
+// ============================================================
+let selectedTask = null;
+let checkedGear = new Set();
+let safetyScore = parseInt(localStorage.getItem('rk_score') || '0');
+let streak = parseInt(localStorage.getItem('rk_streak') || '0');
+let incidentLogs = JSON.parse(localStorage.getItem('rk_logs') || '[]');
+let selectedSeverity = null;
+let quizIndex = 0;
+let quizScore = 0;
+let quizAnswered = false;
+let quizQuestions = [];
+
+// ============================================================
+//  INIT
+// ============================================================
+window.onload = function() {
+  updateTime();
+  setInterval(updateTime, 30000);
+  renderTaskGrid();
+  renderRiskScreen();
+  renderIncidentLogs();
+  renderLogTaskSelect();
+  startQuiz();
+  updateHeaderScore();
+  updateStreak();
+  document.getElementById('streakCount').textContent = streak;
+
+  // Start-of-day reminder
+  setTimeout(() => {
+    if (!sessionStorage.getItem('rk_reminded')) {
+      showModal('☀️','START OF DAY REMINDER',
+        'Good morning! Before you begin work today:\n\n• Inspect all your PPE gear\n• Check your task assignment\n• Attend the daily toolbox talk\n• Report any unsafe conditions\n\nRaksha-Kavach is watching over you. Stay safe! 🦺');
+      sessionStorage.setItem('rk_reminded','1');
+    }
+  }, 800);
+};
+
+function updateTime() {
+  const now = new Date();
+  document.getElementById('statusTime').textContent =
+    now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+}
+
+// ============================================================
+//  NAVIGATION
+// ============================================================
+function switchScreen(name, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo(0, 0);
+  if (name === 'checklist' && !selectedTask) {
+    showToast('⚠️ Select a task first!');
+    switchScreen('tasks', document.querySelector('.nav-item'));
+    document.querySelector('.nav-item').classList.add('active');
+    btn.classList.remove('active');
+  }
+}
+
+// ============================================================
+//  TASK GRID
+// ============================================================
+function renderTaskGrid() {
+  const grid = document.getElementById('taskGrid');
+  grid.innerHTML = TASKS.map(t => `
+    <div class="task-card" id="tc_${t.id}" onclick="selectTask('${t.id}')">
+      <div class="task-emoji">${t.emoji}</div>
+      <div class="task-name">${t.name}</div>
+      <div class="task-risk risk-${t.risk.toLowerCase()}">${t.risk}</div>
+    </div>
+  `).join('');
+}
+
+function selectTask(id) {
+  selectedTask = TASKS.find(t => t.id === id);
+  checkedGear = new Set();
+
+  document.querySelectorAll('.task-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('tc_' + id).classList.add('selected');
+
+  const banner = document.getElementById('selectedTaskBanner');
+  banner.style.display = 'flex';
+  document.getElementById('selectedTaskEmoji').textContent = selectedTask.emoji;
+  document.getElementById('selectedTaskName').textContent = selectedTask.name;
+  document.getElementById('selectedTaskDesc').textContent = selectedTask.desc;
+
+  document.getElementById('proceedBtn').style.display = 'flex';
+
+  renderRiskScreen();
+}
+
+function goToChecklist() {
+  if (!selectedTask) return;
+  renderChecklist();
+  switchScreen('checklist', document.querySelectorAll('.nav-item')[1]);
+  document.querySelectorAll('.nav-item').forEach((b,i) => b.classList.toggle('active', i===1));
+}
+
+// ============================================================
+//  CHECKLIST
+// ============================================================
+function renderChecklist() {
+  if (!selectedTask) return;
+  const wrap = document.getElementById('checklistItems');
+  wrap.innerHTML = selectedTask.gear.map((g, i) => `
+    <div class="gear-item" id="gi_${i}">
+      <div class="gear-emoji">${selectedTask.gearEmoji[i]}</div>
+      <div class="gear-info">
+        <h4>${g}</h4>
+        <p>Mandatory for ${selectedTask.name.toLowerCase()}</p>
+      </div>
+      <button class="check-btn" id="cb_${i}" onclick="toggleGear(${i})">CHECK</button>
+    </div>
+  `).join('');
+
+  renderGearOverlays();
+  updateRiskMeter();
+}
+
+function toggleGear(i) {
+  if (checkedGear.has(i)) {
+    checkedGear.delete(i);
+    document.getElementById('gi_'+i).classList.remove('checked');
+    document.getElementById('cb_'+i).classList.remove('done');
+    document.getElementById('cb_'+i).textContent = 'CHECK';
+  } else {
+    checkedGear.add(i);
+    document.getElementById('gi_'+i).classList.add('checked');
+    document.getElementById('cb_'+i).classList.add('done');
+    document.getElementById('cb_'+i).textContent = '✓ OK';
+  }
+  renderGearOverlays();
+  updateRiskMeter();
+}
+
+function renderGearOverlays() {
+  const wrap = document.getElementById('gearOverlays');
+  wrap.innerHTML = selectedTask.gear.map((g,i) => `
+    <span class="gear-overlay-badge ${checkedGear.has(i)?'active':''}">
+      ${selectedTask.gearEmoji[i]} ${g.split(' ')[0]}
+    </span>
+  `).join('');
+
+  const pct = checkedGear.size / selectedTask.gear.length;
+  const avatarEmojis = ['👷‍♂️','🦺','🥷'];
+  document.getElementById('avatarFigure').textContent = pct >= 1 ? '🦸' : pct >= 0.5 ? '🧑‍🏭' : '👷';
+}
+
+function updateRiskMeter() {
+  if (!selectedTask) return;
+  const total = selectedTask.gear.length;
+  const checked = checkedGear.size;
+  const pct = checked / total;
+  const fill = document.getElementById('riskBarFill');
+  const msg = document.getElementById('riskConsequence');
+  const remaining = 100 - Math.round(pct * 100);
+
+  fill.style.width = (100 - Math.round(pct * 100)) + '%';
+
+  if (pct >= 1) {
+    fill.className = 'risk-bar-fill risk-safe';
+    fill.style.width = '15%';
+    msg.className = 'risk-consequence safe-msg';
+    msg.textContent = '✅ Excellent! All gear checked. You are properly protected for this task!';
+    document.getElementById('alertBanner').className = 'alert-banner safe';
+    document.getElementById('alertBanner').textContent = '✅ ALL GEAR CHECKED — SAFE TO WORK!';
+  } else if (pct >= 0.5) {
+    fill.className = 'risk-bar-fill risk-partial';
+    msg.className = 'risk-consequence';
+    msg.textContent = `⚠️ ${total - checked} gear item(s) unchecked. Partial protection means partial safety. Check remaining gear!`;
+  } else {
+    fill.className = 'risk-bar-fill risk-full';
+    msg.className = 'risk-consequence';
+    const injury = selectedTask.injuries[Math.floor(Math.random() * selectedTask.injuries.length)];
+    msg.textContent = `🚨 HIGH RISK: Without proper gear, you face risk of: ${injury}. Do NOT start work!`;
+    document.getElementById('alertBanner').className = 'alert-banner';
+    document.getElementById('alertBanner').textContent = '⚠️ TAP FOR TODAY\'S SAFETY REMINDER';
+  }
+}
+
+function completeDay() {
+  if (!selectedTask) return;
+  const pct = checkedGear.size / selectedTask.gear.length;
+  if (pct < 1) {
+    showModal('⚠️', 'INCOMPLETE GEAR!',
+      `You have only checked ${checkedGear.size} of ${selectedTask.gear.length} required gear items.\n\nPlease complete the safety checklist before marking the day complete.`);
+    return;
+  }
+  safetyScore += 10;
+  streak += 1;
+  localStorage.setItem('rk_score', safetyScore);
+  localStorage.setItem('rk_streak', streak);
+  updateHeaderScore();
+  document.getElementById('streakCount').textContent = streak;
+  showModal('🏆', 'DAY COMPLETE!',
+    `All gear checked for ${selectedTask.name}!\n\n+10 Safety Points Earned\n\n🔥 Current Streak: ${streak} days\n\nExcellent work! Stay safe and keep building your streak!`);
+}
+
+// ============================================================
+//  RISK SCREEN
+// ============================================================
+function renderRiskScreen() {
+  const screen = document.getElementById('riskDetailScreen');
+  const task = selectedTask || TASKS[0];
+  const rPct = task.riskPct;
+
+  const dashOffset = 314 - (314 * rPct / 100);
+  document.getElementById('meterCircle').setAttribute('stroke-dashoffset', dashOffset);
+  document.getElementById('meterPct').textContent = rPct + '%';
+
+  const riskColor = rPct >= 80 ? '#FF3D00' : rPct >= 60 ? '#FF6D00' : '#00E676';
+  document.getElementById('meterCircle').setAttribute('stroke', riskColor);
+  document.getElementById('meterPct').setAttribute('fill', riskColor);
+
+  screen.innerHTML = `
+    <div class="risk-card">
+      <div class="risk-level-big">
+        <div class="risk-icon-big">${task.emoji}</div>
+        <div>
+          <div class="risk-title" style="color:${riskColor}">${task.name}</div>
+          <div class="risk-sub">${task.desc}</div>
+        </div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--gray);letter-spacing:1.5px;margin-bottom:8px;">POTENTIAL INJURIES WITHOUT PPE:</div>
+      <ul class="injury-list">
+        ${task.injuries.map((inj, i) => `
+          <li class="injury-item">
+            <span class="injury-dot">${['🔴','🟠','🟡','🔴'][i%4]}</span>
+            <span>${inj}</span>
+          </li>
+        `).join('')}
+      </ul>
+    </div>
+    <div class="risk-card" style="margin-bottom:12px;">
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--yellow);letter-spacing:2px;margin-bottom:10px;">MANDATORY PPE</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${task.gear.map((g,i) => `
+          <div style="background:var(--dark3);border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;font-family:var(--font-body);">
+            ${task.gearEmoji[i]} ${g}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+//  INCIDENT LOG
+// ============================================================
+function renderLogTaskSelect() {
+  const sel = document.getElementById('logTask');
+  sel.innerHTML = TASKS.map(t => `<option value="${t.name}">${t.emoji} ${t.name}</option>`).join('');
+}
+
+function selectSeverity(sev, btn) {
+  selectedSeverity = sev;
+  document.querySelectorAll('.severity-btn').forEach(b => b.className = 'severity-btn');
+  btn.className = `severity-btn sel-${sev.toLowerCase()}`;
+}
+
+function submitIncident() {
+  const task = document.getElementById('logTask').value;
+  const desc = document.getElementById('logDesc').value.trim();
+  if (!desc) { showToast('⚠️ Please describe the incident'); return; }
+  if (!selectedSeverity) { showToast('⚠️ Select severity level'); return; }
+
+  const log = {
+    id: Date.now(),
+    task,
+    desc,
+    severity: selectedSeverity,
+    date: new Date().toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+  };
+
+  incidentLogs.unshift(log);
+  localStorage.setItem('rk_logs', JSON.stringify(incidentLogs));
+  document.getElementById('logDesc').value = '';
+  selectedSeverity = null;
+  document.querySelectorAll('.severity-btn').forEach(b => b.className = 'severity-btn');
+  renderIncidentLogs();
+  showToast('✅ Incident logged! Supervisor notified.');
+}
+
+function renderIncidentLogs() {
+  const wrap = document.getElementById('incidentLogs');
+  if (!incidentLogs.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No incidents logged yet.<br>Report near misses to build a safer workplace.</p></div>`;
+    return;
+  }
+  wrap.innerHTML = incidentLogs.slice(0, 10).map(log => `
+    <div class="log-entry sev-${log.severity.toLowerCase()}">
+      <div class="log-top">
+        <div class="log-task-name">${log.task}</div>
+        <div class="log-sev-badge sev-${log.severity.toLowerCase()}">${log.severity}</div>
+      </div>
+      <div class="log-desc">${log.desc}</div>
+      <div class="log-date">📅 ${log.date}</div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+//  QUIZ
+// ============================================================
+function startQuiz() {
+  quizQuestions = [...QUIZ].sort(() => Math.random() - 0.5).slice(0, 5);
+  quizIndex = 0;
+  quizScore = 0;
+  document.getElementById('quizScoreCard').classList.remove('show');
+  document.getElementById('quizNextBtn').classList.remove('show');
+  renderQuizQuestion();
+}
+
+function renderQuizQuestion() {
+  const q = quizQuestions[quizIndex];
+  const container = document.getElementById('quizContainer');
+  const letters = ['A','B','C','D'];
+
+  container.innerHTML = `
+    <div class="quiz-card">
+      <div class="quiz-question-num">QUESTION ${quizIndex + 1} OF ${quizQuestions.length}</div>
+      <div class="quiz-question-text">${q.q}</div>
+      <div class="quiz-options">
+        ${q.opts.map((opt, i) => `
+          <button class="quiz-option" onclick="answerQuiz(${i})" id="qo_${i}">
+            <span class="option-letter">${letters[i]}</span>
+            ${opt}
+          </button>
+        `).join('')}
+      </div>
+      <div class="quiz-explanation" id="quizExp">${q.exp}</div>
+    </div>
+  `;
+  quizAnswered = false;
+  document.getElementById('quizNextBtn').classList.remove('show');
+  document.getElementById('quizBadge').textContent = `${quizIndex+1}/${quizQuestions.length}`;
+}
+
+function answerQuiz(selected) {
+  if (quizAnswered) return;
+  quizAnswered = true;
+  const q = quizQuestions[quizIndex];
+
+  document.querySelectorAll('.quiz-option').forEach((btn, i) => {
+    btn.classList.add('disabled');
+    if (i === q.ans) btn.classList.add('correct');
+    else if (i === selected && selected !== q.ans) btn.classList.add('wrong');
+  });
+
+  document.getElementById('quizExp').classList.add('show');
+
+  if (selected === q.ans) {
+    quizScore++;
+    safetyScore += 5;
+    localStorage.setItem('rk_score', safetyScore);
+    updateHeaderScore();
+    showToast('✅ Correct! +5 points');
+  } else {
+    showToast('❌ Wrong! Learn from this.');
+  }
+
+  document.getElementById('quizNextBtn').classList.add('show');
+  document.getElementById('quizNextBtn').textContent =
+    quizIndex < quizQuestions.length - 1 ? 'NEXT QUESTION ➜' : 'SEE RESULTS 📊';
+}
+
+function nextQuestion() {
+  quizIndex++;
+  if (quizIndex >= quizQuestions.length) {
+    showQuizResults();
+  } else {
+    renderQuizQuestion();
+  }
+}
+
+function showQuizResults() {
+  document.getElementById('quizContainer').innerHTML = '';
+  document.getElementById('quizNextBtn').classList.remove('show');
+
+  const sc = document.getElementById('quizScoreCard');
+  sc.classList.add('show');
+  document.getElementById('finalScore').textContent = quizScore;
+  document.getElementById('finalScoreTotal').textContent = `/ ${quizQuestions.length} CORRECT`;
+
+  let msg = '';
+  const pct = quizScore / quizQuestions.length;
+  if (pct >= 0.8) msg = '🏆 Outstanding! You have excellent safety knowledge. Keep leading by example!';
+  else if (pct >= 0.6) msg = '👍 Good job! Review the questions you missed to strengthen your safety knowledge.';
+  else msg = '📚 Keep studying! Safety knowledge saves lives. Retry to improve your score.';
+
+  document.getElementById('finalScoreMsg').textContent = msg;
+}
+
+function restartQuiz() {
+  document.getElementById('quizScoreCard').classList.remove('show');
+  startQuiz();
+}
+
+// ============================================================
+//  UI HELPERS
+// ============================================================
+function updateHeaderScore() {
+  document.getElementById('headerScore').textContent = safetyScore;
+}
+
+function updateStreak() {
+  document.getElementById('streakCount').textContent = streak;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function showModal(icon, title, msg) {
+  document.getElementById('modalIcon').textContent = icon;
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalMsg').innerHTML = msg.replace(/\n/g, '<br>');
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function showReminder() {
+  showModal('🦺', 'DAILY SAFETY REMINDER',
+    '1. Inspect all PPE before use\n2. Never skip safety gear for "quick" tasks\n3. Report all near misses immediately\n4. Stay hydrated & take regular breaks\n5. Know emergency exit routes\n\n☎️ Emergency: 112\n🏥 First Aid point is your responsibility to know!');
+}
+
+// Auto-select first task for demo
+setTimeout(() => {
+  selectTask('welding');
+}, 500);
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js")
+      .then(r => console.log("SW registered"))
+      .catch(e => console.log("SW error", e));
+  });
+}
+</script>
+</body>
+</html>
